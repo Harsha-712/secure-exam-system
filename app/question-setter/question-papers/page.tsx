@@ -1,262 +1,281 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
 import {
   collection,
-  getDocs,
-  query,
-  orderBy,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 
-type Paper = {
-  id: string;
-  title: string;
-  subject: string;
-  year: string;
-  semester: string;
-  fileName: string;
-  fileUrl: string;
-};
+export default function QuestionSetterPage() {
+  const router = useRouter();
 
-export default function QuestionPapers() {
-  const [papers, setPapers] = useState<Paper[]>([]);
-  const [search, setSearch] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [year, setYear] = useState("");
   const [semester, setSemester] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    loadPapers();
-  }, []);
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+      setMessage("");
+    }
+  };
 
-  async function loadPapers() {
+  const handleUpload = async () => {
+    if (!file) {
+      setMessage("Please select a question paper.");
+      return;
+    }
+
+    if (!title.trim()) {
+      setMessage("Please enter the question paper title.");
+      return;
+    }
+
+    if (!subject.trim()) {
+      setMessage("Please enter the subject.");
+      return;
+    }
+
+    if (!auth.currentUser) {
+      setMessage("Please login first.");
+      return;
+    }
+
+    if (file.type !== "application/pdf") {
+      setMessage("Please upload a PDF file only.");
+      return;
+    }
+
     try {
-      const q = query(
-        collection(db, "questionPapers"),
-        orderBy("createdAt", "desc")
+      setLoading(true);
+      setMessage("Uploading question paper...");
+
+      const cloudName =
+        process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+      const uploadPreset =
+        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+      if (!cloudName || !uploadPreset) {
+        throw new Error(
+          "Cloudinary configuration is missing."
+        );
+      }
+
+      const formData = new FormData();
+
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+
+      const cloudinaryResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
       );
 
-      const snapshot = await getDocs(q);
+      const cloudinaryData =
+        await cloudinaryResponse.json();
 
-      const data = snapshot.docs.map((doc) => {
-        const item = doc.data();
+      if (!cloudinaryResponse.ok) {
+        console.error(
+          "Cloudinary Error:",
+          cloudinaryData
+        );
 
-        return {
-          id: doc.id,
-          title: item.title || "Untitled",
-          subject: item.subject || "Unknown",
-          year: item.year || "",
-          semester: item.semester || "",
-          fileName: item.fileName || "",
-          fileUrl: item.fileUrl || "",
-        };
-      });
+        throw new Error(
+          cloudinaryData?.error?.message ||
+            "Cloudinary upload failed."
+        );
+      }
 
-      setPapers(data);
-    } catch (error) {
-      console.error("Error loading question papers:", error);
+      const fileUrl = cloudinaryData.secure_url;
+
+      if (!fileUrl) {
+        throw new Error(
+          "Cloudinary did not return a file URL."
+        );
+      }
+
+      await addDoc(
+  collection(db, "questionPapers"),
+  {
+    title: title.trim(),
+    subject: subject.trim(),
+    year: year.trim(),
+    semester: semester.trim(),
+
+    fileName: file.name,
+    fileUrl: fileUrl,
+
+    cloudinaryPublicId:
+      cloudinaryData.public_id || "",
+
+    uploadedBy: auth.currentUser.uid,
+
+    uploadedByEmail:
+      auth.currentUser.email || "",
+
+    status: "PENDING",
+
+    reviewedBy: "",
+    reviewedByEmail: "",
+    reviewedAt: null,
+    reviewComment: "",
+
+    createdAt: serverTimestamp(),
+  }
+);
+
+      setMessage(
+        "Question paper uploaded successfully!"
+      );
+
+      setFile(null);
+      setTitle("");
+      setSubject("");
+      setYear("");
+      setSemester("");
+
+      setTimeout(() => {
+        router.push("/question-papers");
+      }, 1000);
+
+    } catch (error: any) {
+      console.error("Upload Error:", error);
+
+      setMessage(
+        error?.message ||
+          "Upload failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
-  }
-
-  const subjects = [
-    ...new Set(papers.map((p) => p.subject)),
-  ];
-
-  const years = [
-    ...new Set(papers.map((p) => p.year)),
-  ];
-
-  const semesters = [
-    ...new Set(papers.map((p) => p.semester)),
-  ];
-
-  const filteredPapers = papers.filter((paper) => {
-    const text = search.toLowerCase();
-
-    const matchesSearch =
-      paper.title.toLowerCase().includes(text) ||
-      paper.subject.toLowerCase().includes(text) ||
-      paper.year.toLowerCase().includes(text) ||
-      paper.semester.toLowerCase().includes(text);
-
-    const matchesSubject =
-      !subject || paper.subject === subject;
-
-    const matchesYear =
-      !year || paper.year === year;
-
-    const matchesSemester =
-      !semester || paper.semester === semester;
-
-    return (
-      matchesSearch &&
-      matchesSubject &&
-      matchesYear &&
-      matchesSemester
-    );
-  });
+  };
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="mx-auto max-w-2xl rounded-xl bg-white p-8 shadow">
 
-      <div className="mx-auto max-w-6xl">
-
-        <h1 className="text-3xl font-bold">
-          Question Papers
+        <h1 className="mb-2 text-3xl font-bold">
+          Upload Question Paper
         </h1>
 
-        <p className="mt-2 text-gray-600">
-          Search and access uploaded question papers.
+        <p className="mb-6 text-gray-600">
+          Upload a secure question paper.
         </p>
 
-        <div className="mt-6 rounded-xl bg-white p-5 shadow">
+        <div className="mb-5">
+          <label className="mb-2 block font-medium">
+            Question Paper Title
+          </label>
 
           <input
             type="text"
-            placeholder="Search question papers..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={title}
+            onChange={(e) =>
+              setTitle(e.target.value)
+            }
+            placeholder="Example: Data Structures April 2026"
+            className="w-full rounded-lg border p-3"
+          />
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-2 block font-medium">
+            Subject
+          </label>
+
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) =>
+              setSubject(e.target.value)
+            }
+            placeholder="Example: Data Structures"
+            className="w-full rounded-lg border p-3"
+          />
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-2 block font-medium">
+            Year
+          </label>
+
+          <input
+            type="text"
+            value={year}
+            onChange={(e) =>
+              setYear(e.target.value)
+            }
+            placeholder="Example: 2026"
+            className="w-full rounded-lg border p-3"
+          />
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-2 block font-medium">
+            Semester
+          </label>
+
+          <input
+            type="text"
+            value={semester}
+            onChange={(e) =>
+              setSemester(e.target.value)
+            }
+            placeholder="Example: 4"
+            className="w-full rounded-lg border p-3"
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="mb-2 block font-medium">
+            Question Paper File
+          </label>
+
+          <input
+            type="file"
+            accept=".pdf,application/pdf"
+            onChange={handleFileChange}
             className="w-full rounded-lg border p-3"
           />
 
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-
-            <select
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="rounded-lg border p-3"
-            >
-              <option value="">
-                All Subjects
-              </option>
-
-              {subjects.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              className="rounded-lg border p-3"
-            >
-              <option value="">
-                All Years
-              </option>
-
-              {years.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
-              className="rounded-lg border p-3"
-            >
-              <option value="">
-                All Semesters
-              </option>
-
-              {semesters.map((item) => (
-                <option key={item} value={item}>
-                  Semester {item}
-                </option>
-              ))}
-            </select>
-
-          </div>
-
-          <button
-            onClick={() => {
-              setSearch("");
-              setSubject("");
-              setYear("");
-              setSemester("");
-            }}
-            className="mt-4 rounded-lg border px-5 py-2"
-          >
-            Clear Filters
-          </button>
-
+          {file && (
+            <p className="mt-2 text-sm text-gray-600">
+              Selected: {file.name}
+            </p>
+          )}
         </div>
 
-        {loading ? (
-          <div className="mt-6 rounded-xl bg-white p-8 text-center">
-            Loading question papers...
-          </div>
-        ) : filteredPapers.length === 0 ? (
-          <div className="mt-6 rounded-xl bg-white p-8 text-center">
-            No question papers found.
-          </div>
-        ) : (
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
+        <button
+          type="button"
+          onClick={handleUpload}
+          disabled={loading}
+          className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading
+            ? "Uploading..."
+            : "Upload Question Paper"}
+        </button>
 
-            {filteredPapers.map((paper) => (
-              <div
-                key={paper.id}
-                className="rounded-xl bg-white p-6 shadow"
-              >
-
-                <h2 className="text-xl font-bold">
-                  {paper.title}
-                </h2>
-
-                <p className="mt-3">
-                  <strong>Subject:</strong>{" "}
-                  {paper.subject}
-                </p>
-
-                <p className="mt-1">
-                  <strong>Year:</strong>{" "}
-                  {paper.year}
-                </p>
-
-                <p className="mt-1">
-                  <strong>Semester:</strong>{" "}
-                  {paper.semester}
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  {paper.fileName}
-                </p>
-
-                <div className="mt-5 flex gap-3">
-
-                  <a
-                    href={paper.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-lg bg-blue-600 px-5 py-2 text-white"
-                  >
-                    View
-                  </a>
-<a
-  href={paper.fileUrl}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="rounded-lg border px-5 py-2"
->
-  Download
-</a>
-                </div>
-
-              </div>
-            ))}
-
+        {message && (
+          <div className="mt-5 rounded-lg bg-gray-100 p-4 text-center">
+            {message}
           </div>
         )}
 
       </div>
-
-    </main>
+    </div>
   );
 }

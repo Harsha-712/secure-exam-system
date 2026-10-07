@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,32 +15,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (user) => {
-        if (!user) {
-          router.push("/login");
-          return;
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.push("/login");
+        return;
+      }
 
-        setEmail(user.email || "");
+      setEmail(user.email || "");
 
-        try {
-          const userRole = await getUserRole(user.uid);
+      try {
+        const userRole = await getUserRole(user.email || "");
 
-          if (userRole) {
-            setRole(userRole);
-          } else {
-            setRole("NO ROLE ASSIGNED");
-          }
-        } catch (error) {
-          console.error("Error fetching role:", error);
+        if (userRole) {
+          setRole(userRole);
+        } else {
           setRole("NO ROLE ASSIGNED");
         }
-
-        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching role:", error);
+        setRole("NO ROLE ASSIGNED");
       }
-    );
+
+      setLoading(false);
+    });
 
     return () => unsubscribe();
   }, [router]);
@@ -59,7 +57,6 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 p-10">
-
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow">
 
         <h1 className="text-3xl font-bold mb-6">
@@ -67,7 +64,6 @@ export default function DashboardPage() {
         </h1>
 
         <div className="bg-gray-50 p-5 rounded-lg mb-8">
-
           <p className="mb-2">
             <strong>Email:</strong> {email}
           </p>
@@ -78,7 +74,6 @@ export default function DashboardPage() {
               {role}
             </span>
           </p>
-
         </div>
 
         <h2 className="text-xl font-semibold mb-4">
@@ -86,39 +81,54 @@ export default function DashboardPage() {
         </h2>
 
         {role === "QUESTION_SETTER" && (
-          <button className="bg-blue-600 text-white px-5 py-2 rounded-lg">
+          <button
+            onClick={() => router.push("/question-setter")}
+            className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700"
+          >
             Upload Question Paper
           </button>
         )}
 
         {role === "REVIEWER" && (
-          <button className="bg-green-600 text-white px-5 py-2 rounded-lg">
+          <button
+            onClick={() => router.push("/reviewer")}
+            className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700"
+          >
             Review Question Papers
           </button>
         )}
 
         {role === "ADMIN" && (
-          <div className="flex gap-3">
-
-            <button className="bg-purple-600 text-white px-5 py-2 rounded-lg">
-              Finalize Paper
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => router.push("/admin")}
+              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Manage Question Papers
             </button>
 
-            <button className="bg-orange-600 text-white px-5 py-2 rounded-lg">
+            <button
+              onClick={() => router.push("/admin")}
+              className="bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700"
+            >
               Schedule Release
             </button>
-
           </div>
         )}
 
         {role === "EXAM_CENTRE" && (
-          <button className="bg-indigo-600 text-white px-5 py-2 rounded-lg">
+          <button
+            onClick={() => router.push("/exam-centre")}
+            className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700"
+          >
             View Released Papers
           </button>
         )}
 
         {role === "AUDITOR" && (
-          <button className="bg-gray-700 text-white px-5 py-2 rounded-lg">
+          <button
+            className="bg-gray-700 text-white px-5 py-2 rounded-lg"
+          >
             View Audit Logs
           </button>
         )}
@@ -137,7 +147,7 @@ export default function DashboardPage() {
         </button>
 
       </div>
-
     </main>
   );
 }
+

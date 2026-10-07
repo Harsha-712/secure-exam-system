@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -57,7 +58,6 @@ export default function QuestionPapers() {
       });
 
       setPapers(data);
-
     } catch (error) {
       console.error(
         "Error loading question papers:",
@@ -130,8 +130,9 @@ export default function QuestionPapers() {
 
   return (
     <main className="min-h-screen bg-gray-100 p-6">
-
       <div className="mx-auto max-w-6xl">
+
+        {/* Header */}
 
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 
@@ -145,14 +146,18 @@ export default function QuestionPapers() {
             </p>
           </div>
 
+          {/* Correct Upload Route */}
+
           <a
-  href="/question-setter/question-papers"
-  className="rounded-lg bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-700"
->
-  Upload New Paper
-</a>
+            href="/question-setter/question-papers"
+            className="rounded-lg bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-700"
+          >
+            Upload New Paper
+          </a>
 
         </div>
+
+        {/* Search and Filters */}
 
         <div className="mt-6 rounded-xl bg-white p-5 shadow">
 
@@ -167,6 +172,8 @@ export default function QuestionPapers() {
           />
 
           <div className="mt-4 grid gap-4 md:grid-cols-3">
+
+            {/* Subject */}
 
             <select
               value={subject}
@@ -186,6 +193,8 @@ export default function QuestionPapers() {
               ))}
             </select>
 
+            {/* Year */}
+
             <select
               value={year}
               onChange={(e) =>
@@ -203,6 +212,8 @@ export default function QuestionPapers() {
                 </option>
               ))}
             </select>
+
+            {/* Semester */}
 
             <select
               value={semester}
@@ -224,6 +235,8 @@ export default function QuestionPapers() {
 
           </div>
 
+          {/* Clear Filters */}
+
           <button
             onClick={() => {
               setSearch("");
@@ -238,6 +251,8 @@ export default function QuestionPapers() {
 
         </div>
 
+        {/* Loading */}
+
         {loading ? (
 
           <div className="mt-6 rounded-xl bg-white p-8 text-center shadow">
@@ -246,7 +261,10 @@ export default function QuestionPapers() {
 
         ) : filteredPapers.length === 0 ? (
 
+          /* No Papers */
+
           <div className="mt-6 rounded-xl bg-white p-8 text-center shadow">
+
             <p className="text-lg font-semibold">
               No question papers found.
             </p>
@@ -254,9 +272,12 @@ export default function QuestionPapers() {
             <p className="mt-2 text-gray-500">
               Upload a question paper to see it here.
             </p>
+
           </div>
 
         ) : (
+
+          /* Papers */
 
           <div className="mt-6 grid gap-5 md:grid-cols-2">
 
@@ -267,6 +288,8 @@ export default function QuestionPapers() {
                 className="rounded-xl bg-white p-6 shadow"
               >
 
+                {/* Paper Header */}
+
                 <div className="flex items-start gap-4">
 
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-2xl">
@@ -274,6 +297,7 @@ export default function QuestionPapers() {
                   </div>
 
                   <div className="min-w-0">
+
                     <h2 className="text-xl font-bold">
                       {paper.title}
                     </h2>
@@ -281,9 +305,12 @@ export default function QuestionPapers() {
                     <p className="mt-1 break-all text-sm text-gray-500">
                       {paper.fileName}
                     </p>
+
                   </div>
 
                 </div>
+
+                {/* Paper Details */}
 
                 <div className="mt-5 space-y-2">
 
@@ -303,6 +330,8 @@ export default function QuestionPapers() {
                   </p>
 
                 </div>
+
+                {/* View and Download */}
 
                 {paper.fileUrl ? (
 
@@ -345,7 +374,6 @@ export default function QuestionPapers() {
         )}
 
       </div>
-
     </main>
   );
 }
